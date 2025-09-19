@@ -2,6 +2,7 @@
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 
+// ---- Submit Result ----
 exports.submitResult = async (req, res) => {
   try {
     const { paperId, userId, responses } = req.body;
@@ -19,7 +20,6 @@ exports.submitResult = async (req, res) => {
       .limit(1)
       .get();
 
-    // If a document is found, it means the user has already submitted this test.
     if (!existingResultSnap.empty) {
       return res.status(200).json({ success: false, message: "you have already submit the test response" });
     }
@@ -53,8 +53,6 @@ exports.submitResult = async (req, res) => {
           score++;
         }
       } else if (qData.questionType === "one-line") {
-        // This part requires access to Gemini API, assuming it's correctly configured
-        // and the API key is available via environment variables.
         const apiKey = process.env.GEMINI_API_KEY || "";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
@@ -92,6 +90,7 @@ exports.submitResult = async (req, res) => {
       });
     }
 
+    // ---- Save Result ----
     const resultRef = await db.collection("results").add({
       paperId,
       userId,
@@ -99,6 +98,14 @@ exports.submitResult = async (req, res) => {
       score,
       total,
       createdAt: new Date(),
+    });
+
+    // ---- Update assigned paper isSubmitted = true ----
+    const assignedPaperRef = db.collection("users").doc(userId).collection("assignedPapers").doc(paperId);
+
+    await assignedPaperRef.update({
+      isSubmitted: true,
+      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     res.status(200).json({

@@ -32,6 +32,39 @@ exports.getAllQuestionPapers = async (req, res) => {
   }
 };
 
+// ---- Get Question Paper by ID ----
+exports.getQuestionPaperById = async (req, res) => {
+  try {
+    const { id } = req.params; // paperId from URL
+    const paperRef = admin.firestore().collection("questionPapers").doc(id);
+    const paperDoc = await paperRef.get();
+
+    if (!paperDoc.exists) {
+      return res.status(404).json({ message: "Question paper not found" });
+    }
+
+    const paperData = paperDoc.data();
+
+    // Get all questions inside this paper
+    const questionsSnapshot = await paperRef.collection("questions").get();
+    const questions = questionsSnapshot.docs.map(qDoc => ({
+      id: qDoc.id,
+      ...qDoc.data(),
+    }));
+
+    return res.status(200).json({
+      id: paperDoc.id,
+      paperName: paperData.paperName,
+      duration: paperData.duration,
+      numOfQuestions: paperData.numOfQuestions,
+      createdAt: paperData.createdAt,
+      questions,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 // ---- Create a new question paper ----
 exports.createQuestionPaper = async (req, res) => {
   try {
@@ -303,6 +336,7 @@ exports.assignPapersToUser = async (req, res) => {
       // assign new
       batch.set(assignedRef.doc(pid), {
         paperId: pid,
+        isSubmitted: false,  
         assignedAt: admin.firestore.FieldValue.serverTimestamp()
       });
       assignedCount++;

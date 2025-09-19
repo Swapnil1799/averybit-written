@@ -234,10 +234,12 @@ exports.loginUser = async (req, res) => {
     res.json({
       message: "Login successful",
       token,
+      userId: userDoc.id,      
       isAdmin: userData.isAdmin === true,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 

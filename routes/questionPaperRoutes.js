@@ -7,7 +7,8 @@ const {
   deleteQuestionPaper,
   editQuestionInPaper,
   deleteQuestionFromPaper,
-  assignPapersToUser
+  assignPapersToUser,
+  getQuestionPaperById 
 } = require("../controllers/questionPaperController");
 const router = express.Router();
 
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post("/create", createQuestionPaper);
 router.post("/addQuestion", addQuestionToPaper);
 router.get("/getAll", getAllQuestionPapers);
+router.get("/getQuestion/:id", getQuestionPaperById); 
 router.put("/edit", editQuestionPaper);
 router.delete("/delete", deleteQuestionPaper);
 router.put("/editQuestion", editQuestionInPaper);
