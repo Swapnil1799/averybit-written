@@ -100,12 +100,14 @@ exports.submitResult = async (req, res) => {
       createdAt: new Date(),
     });
 
-    // ---- Update assigned paper isSubmitted = true ----
+    // ---- Update assigned paper ----
     const assignedPaperRef = db.collection("users").doc(userId).collection("assignedPapers").doc(paperId);
 
     await assignedPaperRef.update({
       isSubmitted: true,
-      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      submittedOn: admin.firestore.FieldValue.serverTimestamp(),
+      resultId: resultRef.id, 
+      score: score,                                  
     });
 
     res.status(200).json({
@@ -121,6 +123,7 @@ exports.submitResult = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 
 // ---- Get Result ----
@@ -150,6 +153,64 @@ exports.getResult = async (req, res) => {
     res.status(200).json({ success: true, result });
   } catch (error) {
     console.error("Error in getResult:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ---- Get Result By ID ----
+// ---- Get Result By ID ----
+exports.getResultById = async (req, res) => {
+  try {
+    const { resultId } = req.params;
+
+    if (!resultId) {
+      return res.status(400).json({
+        success: false,
+        message: "resultId required"
+      });
+    }
+
+    const resultRef = admin.firestore().collection("results").doc(resultId);
+    const resultDoc = await resultRef.get();
+
+    if (!resultDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: "Result not found"
+      });
+    }
+
+    const resultData = resultDoc.data();
+
+    const questionsData = [];
+
+    // 🔥 change: iterate over resultData.responses
+    for (const resp of resultData.responses) {
+      const qDoc = await admin.firestore().collection("questions").doc(resp.questionId).get();
+
+      if (qDoc.exists) {
+        const qData = qDoc.data();
+        questionsData.push({
+          questionId: resp.questionId,
+          question: qData.question,
+          correctAnswer: qData.answer,
+          options: qData.options,
+          userAnswer: resp.userAnswer,
+          isCorrect: resp.isCorrect
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      resultId,
+      paperId: resultData.paperId,
+      userId: resultData.userId,
+      questions: questionsData
+    });
+
+  } catch (error) {
+    console.error("Error in getResultById:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

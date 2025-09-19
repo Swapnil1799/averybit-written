@@ -50,27 +50,60 @@ exports.getUserById = async (req, res) => {
 
     const userData = userDoc.data();
 
-    // Fetch subcollections
-    const subcollectionsSnapshot = await userRef.listCollections();
-    let subcollectionsData = {};
+    // ✅ Fetch assignedPapers subcollection
+    const assignedPapersSnap = await userRef.collection("assignedPapers").get();
 
-    for (const subCol of subcollectionsSnapshot) {
-      const subColSnapshot = await subCol.get();
-      subcollectionsData[subCol.id] = [];
-      subColSnapshot.forEach((doc) => {
-        subcollectionsData[subCol.id].push({
-          id: doc.id,
-          ...doc.data(),
-        });
+    const tests = [];
+
+    for (const doc of assignedPapersSnap.docs) {
+      const paperData = doc.data();
+
+      // ✅ Get testName from questionPapers -> paperName
+      const qpDoc = await admin.firestore()
+        .collection("questionPapers")
+        .doc(paperData.paperId)
+        .get();
+
+      const testName = qpDoc.exists ? qpDoc.data().paperName : "Untitled Test";
+
+      // ✅ Get score + total if result exists
+      let score = null;
+      let total = null;
+
+      if (paperData.resultId) {
+        const resultDoc = await admin.firestore().collection("results").doc(paperData.resultId).get();
+        if (resultDoc.exists) {
+          const resultData = resultDoc.data();
+          if (resultData.responses && Array.isArray(resultData.responses)) {
+            score = resultData.responses.filter(r => r.isCorrect).length; // integer
+            total = resultData.responses.length; // integer
+          }
+        }
+      }
+
+      // ✅ Convert Firestore timestamp to ISO string
+      let submittedOn = null;
+      if (paperData.submittedOn && paperData.submittedOn.toDate) {
+        submittedOn = paperData.submittedOn.toDate().toISOString();
+      }
+
+      tests.push({
+        testName,
+        isSubmitted: paperData.isSubmitted || false,
+        submittedOn,
+        score,  // integer
+        total   // integer
       });
     }
 
     return res.status(200).json({
       uid: userDoc.id,
       ...userData,
-      subcollections: subcollectionsData,
+      tests
     });
+
   } catch (error) {
+    console.error("Error in getUserById:", error);
     return res.status(500).json({ error: error.message });
   }
 };
