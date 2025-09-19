@@ -89,6 +89,7 @@ exports.getUserById = async (req, res) => {
 
       tests.push({
         testName,
+        resultId: paperData.resultId || null, // 👈 Added resultId
         isSubmitted: paperData.isSubmitted || false,
         submittedOn,
         score,  // integer
@@ -107,6 +108,7 @@ exports.getUserById = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
 
 exports.registerUser = async (req, res) => {
 try {
